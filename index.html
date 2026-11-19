@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Intel · Human Agency</title>
+<meta name="description" content="Look up a company: what it does, where it is, its key facts and where the information comes from.">
+<style>
+:root{--ink:#1d1630;--muted:#6c6485;--paper:#fff8f1;--pink:#ff5d8f;--sun:#ffb830;--mint:#2fd1a4;--sky:#5aa9ff;--violet:#8b5cf6;--line:#eadfd2}
+*{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font:16px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,sans-serif}
+a{color:var(--violet);font-weight:800}
+.wrap{max-width:1000px;margin:0 auto;padding:0 20px}
+.top{padding:18px 0;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.top .brand{font-weight:900;text-decoration:none;color:var(--ink)}
+.hero{padding:34px 0 10px}
+.kicker{display:inline-block;background:#fff;border:2px solid var(--ink);border-radius:999px;padding:5px 14px;font-weight:800;font-size:13px;box-shadow:3px 3px 0 var(--ink)}
+h1{font-size:clamp(34px,6vw,54px);line-height:1.04;margin:14px 0 10px;font-weight:900;letter-spacing:-.02em}
+h1 span{background:linear-gradient(90deg,var(--pink),var(--violet),var(--sky));-webkit-background-clip:text;background-clip:text;color:transparent}
+.lede{color:var(--muted);font-size:18px;max-width:640px;margin:0}
+.search{margin:24px 0 8px;display:flex;gap:8px;background:#fff;border:2px solid var(--ink);border-radius:999px;padding:6px;box-shadow:6px 6px 0 var(--ink);max-width:620px}
+.search input{flex:1;border:0;outline:none;background:transparent;padding:12px 16px;font:inherit;font-weight:700;min-width:0}
+.btn{border:0;cursor:pointer;background:var(--ink);color:#fff;font:inherit;font-weight:900;border-radius:999px;padding:12px 20px}
+.btn:focus-visible,.search input:focus-visible,a:focus-visible{outline:3px solid var(--sky);outline-offset:3px}
+.results{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0 0}
+.chip{border:2px solid var(--ink);background:#fff;border-radius:999px;padding:6px 12px;font:inherit;font-weight:800;font-size:14px;cursor:pointer}
+.chip:hover{background:var(--ink);color:#fff}
+.note{color:var(--muted);font-size:14px;margin:10px 0 0}
+.card{margin:28px 0 10px;background:#fff;border:2px solid var(--ink);border-radius:22px;box-shadow:6px 6px 0 var(--ink);padding:24px}
+.card header{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:6px}
+.card h2{margin:0;font-size:30px;font-weight:900;letter-spacing:-.01em}
+.status{font-size:12px;font-weight:900;border:2px solid var(--ink);border-radius:999px;padding:3px 10px;background:var(--mint)}
+.status.pending{background:var(--sun)}.status.failed{background:#ffb3b3}
+.meta{color:var(--muted);font-size:14px;margin:0 0 14px}
+.desc{font-size:17px;margin:0 0 18px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin:0 0 18px}
+.fact{border:2px solid var(--ink);border-radius:16px;padding:12px 14px;background:var(--paper)}
+.fact small{display:block;color:var(--muted);font-weight:800;font-size:11px;text-transform:uppercase;letter-spacing:.06em}
+.fact b{font-size:15px}
+h3{font-size:16px;font-weight:900;margin:18px 0 8px}
+ul.facts{margin:0;padding-left:20px}ul.facts li{margin:4px 0}
+.links{display:flex;gap:8px;flex-wrap:wrap}
+.links a{border:2px solid var(--ink);border-radius:999px;padding:6px 12px;text-decoration:none;background:#fff;color:var(--ink);font-size:14px}
+.sources{font-size:13px;color:var(--muted);margin-top:18px}
+.state{padding:30px;text-align:center;color:var(--muted);border:2px dashed var(--ink);border-radius:18px;margin:26px 0;background:#fff}
+footer{color:var(--muted);font-size:13px;padding:30px 0 50px;text-align:center}
+@media (max-width:640px){.card h2{font-size:24px}.search{flex-direction:column;border-radius:20px}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top"><a class="brand" href="/">Human Agency</a><span class="kicker">🔍 Intel</span></div>
+  <section class="hero">
+    <h1>What is this company <span>really</span> about?</h1>
+    <p class="lede">Search a company to see what it does, where it's based, its key facts and the sources behind them. Every fact links back to where it came from.</p>
+    <form class="search" id="searchForm" role="search">
+      <input id="q" type="search" placeholder="Try Tesco, Ikea or a company name" aria-label="Company name" autocomplete="off">
+      <button class="btn" type="submit">Search</button>
+    </form>
+    <div class="results" id="suggest" aria-live="polite"></div>
+  </section>
+  <main id="out" aria-live="polite"></main>
+  <footer>Facts come from public sources and are labelled with where they came from. Built by Human Agency.</footer>
+</div>
+<script>
+const API = "https://miru.humanagency.co";
+const $ = id => document.getElementById(id);
+const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const LIST = v => { if (Array.isArray(v)) return v; if (!v) return []; try { return JSON.parse(v); } catch (e) { return []; } };
+const OBJ = v => { if (v && typeof v === "object") return v; try { return JSON.parse(v) || {}; } catch (e) { return {}; } };
+const LABEL = { ready: "Researched", pending: "Researching…", enriching: "Researching…", failed: "Could not research", stale: "Updated earlier" };
+const when = d => { if (!d) return ""; const x = new Date(d); return isNaN(x) ? "" : x.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }); };
+
+async function getJSON(url) {
+  const r = await fetch(url);
+  const body = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(body.error || ("Request failed (" + r.status + ")"));
+  return body;
+}
+
+function renderCompany(c) {
+  const social = OBJ(c.social_links), facts = LIST(c.key_facts), sources = LIST(c.sources);
+  const status = c.status || "pending";
+  const links = Object.entries(social).filter(([, u]) => u).map(([k, u]) => `<a href="${esc(u)}" target="_blank" rel="noopener">${esc(k[0].toUpperCase() + k.slice(1))} ↗</a>`);
+  if (c.website) links.unshift(`<a href="${esc(c.website)}" target="_blank" rel="noopener">Website ↗</a>`);
+  const grid = [
+    ["Industry", c.industry], ["Headquarters", c.headquarters], ["Last researched", when(c.last_enriched_at || c.updated_at)],
+  ].filter(([, v]) => v).map(([k, v]) => `<div class="fact"><small>${esc(k)}</small><b>${esc(v)}</b></div>`).join("");
+  let body = "";
+  if (status === "ready") {
+    body = `
+      <p class="desc">${esc(c.description || "No description yet.")}</p>
+      ${grid ? `<div class="grid">${grid}</div>` : ""}
+      ${facts.length ? `<h3>Key facts</h3><ul class="facts">${facts.map(f => `<li>${esc(f)}</li>`).join("")}</ul>` : ""}
+      ${links.length ? `<h3>Find them online</h3><div class="links">${links.join("")}</div>` : ""}
+      ${sources.length ? `<p class="sources">Sources: ${sources.map(u => `<a href="${esc(u)}" target="_blank" rel="noopener">${esc(u.replace(/^https?:\/\//, "").split("/").slice(0, 2).join("/"))}</a>`).join(", ")}</p>` : ""}`;
+  } else if (status === "failed") {
+    body = `<div class="state">We couldn't research ${esc(c.display_name)} just now. <br>Try again later.</div>`;
+  } else {
+    body = `<div class="state">We're researching ${esc(c.display_name)} now. Refresh this page in a minute.</div>`;
+  }
+  return `<article class="card" aria-labelledby="co-name">
+    <header><h2 id="co-name">${esc(c.display_name)}</h2><span class="status ${esc(status)}">${esc(LABEL[status] || status)}</span></header>
+    <p class="meta">${[c.headquarters, c.industry].filter(Boolean).map(esc).join(" · ")}</p>
+    ${body}</article>`;
+}
+
+async function showCompany(name) {
+  $("out").innerHTML = `<div class="state">Looking up ${esc(name)}…</div>`;
+  try {
+    const c = await getJSON(`${API}/api/company/${encodeURIComponent(name.toLowerCase().replace(/\s+/g, "-"))}`);
+    $("out").innerHTML = renderCompany(c);
+  } catch (e) {
+    $("out").innerHTML = `<div class="state">Could not load ${esc(name)}. ${esc(e.message || "")}</div>`;
+  }
+}
+
+async function search(q) {
+  q = q.trim();
+  if (q.length < 2) return;
+  $("suggest").innerHTML = "";
+  try {
+    const d = await getJSON(`${API}/api/companies/search?q=${encodeURIComponent(q)}`);
+    const list = d.results || [];
+    if (!list.length) {
+      // Not researched yet: opening it starts the research
+      $("suggest").innerHTML = `<button class="chip" data-n="${esc(q)}">Research “${esc(q)}”</button>`;
+      showCompany(q);
+    } else {
+      $("suggest").innerHTML = list.slice(0, 8).map(c => `<button class="chip" data-n="${esc(c.display_name)}">${esc(c.display_name)}</button>`).join("");
+      showCompany(list[0].display_name);
+    }
+    $("suggest").querySelectorAll(".chip").forEach(b => b.onclick = () => showCompany(b.dataset.n));
+  } catch (e) {
+    $("out").innerHTML = `<div class="state">Search isn't available right now. ${esc(e.message || "")}</div>`;
+  }
+}
+
+$("searchForm").addEventListener("submit", e => { e.preventDefault(); search($("q").value); });
+</script>
+</body>
+</html>
