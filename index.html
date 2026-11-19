@@ -25,6 +25,7 @@ h1 span{background:linear-gradient(90deg,var(--pink),var(--violet),var(--sky));-
 .chip{border:2px solid var(--ink);background:#fff;border-radius:999px;padding:6px 12px;font:inherit;font-weight:800;font-size:14px;cursor:pointer}
 .chip:hover{background:var(--ink);color:#fff}
 .note{color:var(--muted);font-size:14px;margin:10px 0 0}
+.conf{display:inline-block;margin-left:6px;font-size:11px;font-weight:900;border:2px solid var(--ink);border-radius:999px;padding:1px 8px;background:var(--sun)}
 .card{margin:28px 0 10px;background:#fff;border:2px solid var(--ink);border-radius:22px;box-shadow:6px 6px 0 var(--ink);padding:24px}
 .card header{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:6px}
 .card h2{margin:0;font-size:30px;font-weight:900;letter-spacing:-.01em}
@@ -93,6 +94,7 @@ function renderCompany(c) {
       ${grid ? `<div class="grid">${grid}</div>` : ""}
       ${facts.length ? `<h3>Key facts</h3><ul class="facts">${facts.map(f => `<li>${esc(f)}</li>`).join("")}</ul>` : ""}
       ${links.length ? `<h3>Find them online</h3><div class="links">${links.join("")}</div>` : ""}
+      <h3>Hiring</h3><div id="hiring">Checking job adverts…</div>
       ${sources.length ? `<p class="sources">Sources: ${sources.map(u => `<a href="${esc(u)}" target="_blank" rel="noopener">${esc(u.replace(/^https?:\/\//, "").split("/").slice(0, 2).join("/"))}</a>`).join(", ")}</p>` : ""}`;
   } else if (status === "failed") {
     body = `<div class="state">We couldn't research ${esc(c.display_name)} just now. <br>Try again later.</div>`;
@@ -105,11 +107,29 @@ function renderCompany(c) {
     ${body}</article>`;
 }
 
+async function loadHiring(name) {
+  const el = document.getElementById("hiring");
+  if (!el) return;
+  try {
+    const d = await getJSON(`${API}/api/hiring-signals?name=${encodeURIComponent(name)}`);
+    const o = d.overview || {};
+    el.innerHTML = `<div class="grid">
+        <div class="fact"><small>Open roles found</small><b>${esc(o.total_open_roles ?? "0")}</b></div>
+        <div class="fact"><small>Trend, last 3 months</small><b>${esc(o.hiring_growth_3m || "Not enough data")}</b></div>
+        <div class="fact"><small>Main focus</small><b>${esc(o.signal || "No clear focus")}</b></div></div>`
+      + (d.growth_signals || []).map(g => `<p class="note"><b>${esc(g.title)}:</b> ${esc(g.description)} <span class="conf">${esc(g.confidence)} confidence</span></p>`).join("")
+      + `<p class="sources">Source: Adzuna job adverts, checked live. These are adverts found, not confirmed hires.</p>`;
+  } catch (e) {
+    el.innerHTML = `<p class="note">Job adverts unavailable right now.</p>`;
+  }
+}
+
 async function showCompany(name) {
   $("out").innerHTML = `<div class="state">Looking up ${esc(name)}…</div>`;
   try {
     const c = await getJSON(`${API}/api/company/${encodeURIComponent(name.toLowerCase().replace(/\s+/g, "-"))}`);
     $("out").innerHTML = renderCompany(c);
+    if (c.status === "ready") loadHiring(c.display_name);
   } catch (e) {
     $("out").innerHTML = `<div class="state">Could not load ${esc(name)}. ${esc(e.message || "")}</div>`;
   }

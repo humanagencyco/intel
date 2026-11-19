@@ -5,6 +5,7 @@ const path = require("path");
 const html = fs.readFileSync(path.join(__dirname, "..", "index.html"), "utf8");
 const script = html.match(/<script>([\s\S]*)<\/script>/)[1];
 const real = JSON.parse(fs.readFileSync(path.join(__dirname, "tesco_real.json"), "utf8"));
+const hiring = JSON.parse(fs.readFileSync(path.join(__dirname, "hiring_real.json"), "utf8"));
 const els = {};
 function El(id) {
   return { id, value: "", innerHTML: "", textContent: "", dataset: {}, onsubmit: null,
@@ -26,8 +27,9 @@ const checks = [];
 const ok = (n, c) => checks.push([n, !!c]);
 (async () => {
   // 1. Search finds Tesco and shows its real facts
-  responses = { "companies/search": { results: [real] }, "company/tesco": real };
+  responses = { "companies/search": { results: [real] }, "company/tesco": real, "hiring-signals": hiring };
   await submit("Tesco");
+  await wait();
   ok("Tesco name shown", out().includes("Tesco"));
   ok("real description shown", out().includes("Tesco PLC is a British"));
   ok("real headquarters shown", out().includes("Welwyn Garden City"));
@@ -35,6 +37,10 @@ const ok = (n, c) => checks.push([n, !!c]);
   ok("status says Researched", out().includes("Researched"));
   ok("website link present", out().includes("https://www.tesco.com"));
   ok("sources listed", out().includes("wikipedia.org"));
+  const hire = () => document.getElementById("hiring").innerHTML;
+  ok("hiring: open roles shown from real data", hire().includes("45"));
+  ok("hiring: trend shown", hire().includes("Moderate growth"));
+  ok("hiring: says these are adverts, not hires", hire().includes("not confirmed hires"));
   // 2. Pending company shows a clear researching state
   responses = { "companies/search": { results: [] }, "company/acme-co": { display_name: "Acme Co", status: "pending" } };
   await submit("Acme Co");

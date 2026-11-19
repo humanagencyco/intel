@@ -19,5 +19,5 @@ if grep -n -i -E "mekala|vikram|riaan|inaaya|@gmail|\+447|SUPABASE_KEY|SERVICE_R
 fi
 echo "   ok"
 echo "3. Behaviour with real Tesco data"
-node dev/load_test.js | tail -1
+node dev/load_test.js
 echo "All checks passed."
