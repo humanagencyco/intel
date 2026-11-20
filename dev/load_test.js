@@ -58,7 +58,7 @@ const ok = (n, c) => checks.push([n, !!c]);
   ok("summary labelled as AI, not checked", out().includes("written by AI"));
   ok("brand section present", out().includes("Famous brands and products"));
   ok("Christmas advert search is labelled unchecked", out().includes("unchecked results"));
-  ok("SWOT labelled as coming next", out().includes("SWOT analysis") && out().includes("Coming next"));
+  ok("SWOT section present", out().includes("SWOT analysis"));
   ok("hiring says based on adverts, not a confidence grade", !out().includes("High confidence") && hire().includes("based on 45 job adverts"));
   // 4. Nothing invented: only real record text is shown
   ok("no invented claims", !/guaranteed|best in class/i.test(out()));

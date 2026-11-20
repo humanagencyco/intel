@@ -116,8 +116,8 @@ function renderCompany(c) {
       </div>
       <h3>Famous brands and products</h3><p class="note">Not checked yet. Will be added from the company's own site and filed reports.</p>
       <h3>Christmas adverts</h3><p class="note">Not checked yet. <a href="https://www.youtube.com/results?search_query=${encodeURIComponent(c.display_name + ' Christmas advert')}" target="_blank" rel="noopener">Search YouTube for ${esc(c.display_name)} Christmas adverts ↗</a> (unchecked results).</p>
-      <h3>AI use</h3><p class="note">Coming next. AI-written, and labelled as such, using the hiring data below.</p>
-      <h3>SWOT analysis</h3><p class="note">Coming next. AI analysis, labelled as an estimate, with the evidence it used.</p>
+      <h3>AI use</h3><div id="aiuse"><p class="note">Working out how they use AI…</p></div>
+      <h3>SWOT analysis</h3><div id="swot"><p class="note">Working out a SWOT…</p></div>
       ${links.length ? `<h3>Find them online</h3><div class="links">${links.join("")}</div>` : ""}
       <h3>Hiring</h3><div id="hiring">Checking job adverts…</div>
       ${sources.length ? `<p class="sources">Sources: ${sources.map(u => `<a href="${esc(u)}" target="_blank" rel="noopener">${esc(u.replace(/^https?:\/\//, "").split("/").slice(0, 2).join("/"))}</a>`).join(", ")}</p>` : ""}`;
@@ -130,6 +130,26 @@ function renderCompany(c) {
     <header><h2 id="co-name">${esc(c.display_name)}</h2><span class="status ${esc(status)}">${esc(LABEL[status] || status)}</span></header>
     <p class="meta">${[c.headquarters, c.industry].filter(Boolean).map(esc).join(" · ")}</p>
     ${body}</article>`;
+}
+
+// AI analysis: labelled as an estimate, each point shows the evidence it rests on
+function analysisItems(list) {
+  return (list || []).map(x => `<li>${esc(x.point)} <span class="note">Evidence: ${esc(x.evidence)}</span></li>`).join("");
+}
+async function loadAnalysis(name) {
+  const ai = document.getElementById("aiuse"), sw = document.getElementById("swot");
+  if (!ai || !sw) return;
+  try {
+    const d = await getJSON(`${API}/api/company/${encodeURIComponent(name.toLowerCase().replace(/\s+/g, "-"))}/analysis`);
+    const label = `<p class="label">${esc(d.label)}</p>`;
+    ai.innerHTML = label + (d.ai_use && d.ai_use.length ? `<ul class="facts">${analysisItems(d.ai_use)}</ul>` : `<p class="note">No clear AI use found in the facts we have.</p>`);
+    const q = d.swot || {};
+    const box = (t, k) => `<div class="fact"><small>${t}</small>${(q[k] && q[k].length) ? `<ul class="facts">${analysisItems(q[k])}</ul>` : `<b>Nothing clear from the facts</b>`}</div>`;
+    sw.innerHTML = label + `<div class="grid">${box("Strengths", "strengths")}${box("Weaknesses", "weaknesses")}${box("Opportunities", "opportunities")}${box("Threats", "threats")}</div>`;
+  } catch (e) {
+    ai.innerHTML = `<p class="note">AI analysis not available right now.</p>`;
+    sw.innerHTML = `<p class="note">SWOT not available right now.</p>`;
+  }
 }
 
 async function loadHiring(name) {
@@ -154,7 +174,7 @@ async function showCompany(name) {
   try {
     const c = await getJSON(`${API}/api/company/${encodeURIComponent(name.toLowerCase().replace(/\s+/g, "-"))}`);
     $("out").innerHTML = renderCompany(c);
-    if (c.status === "ready") loadHiring(c.display_name);
+    if (c.status === "ready") { loadHiring(c.display_name); loadAnalysis(c.display_name); }
   } catch (e) {
     $("out").innerHTML = `<div class="state">Could not load ${esc(name)}. ${esc(e.message || "")}</div>`;
   }
