@@ -33,7 +33,7 @@ const ok = (n, c) => checks.push([n, !!c]);
   ok("Tesco name shown", out().includes("Tesco"));
   ok("real description shown", out().includes("Tesco PLC is a British"));
   ok("real headquarters shown", out().includes("Welwyn Garden City"));
-  ok("real key fact shown", out().includes("Founded in 1919"));
+  ok("key facts hidden until checked", !out().includes("Founded in 1919") && out().includes("Not shown yet"));
   ok("status says Researched", out().includes("Researched"));
   ok("website link present", out().includes("https://www.tesco.com"));
   ok("sources listed", out().includes("wikipedia.org"));
@@ -50,6 +50,16 @@ const ok = (n, c) => checks.push([n, !!c]);
   responses = { "companies/search": { results: [] }, "company/broken-ltd": { display_name: "Broken Ltd", status: "failed" } };
   await submit("Broken Ltd");
   ok("failed shows plain message", out().includes("couldn't research Broken Ltd"));
+  // 3b. Unchecked claims from the summary are not shown; sections are labelled
+  responses = { "companies/search": { results: [real] }, "company/tesco": real, "hiring-signals": hiring };
+  await submit("Tesco");
+  ok("unchecked market-share claim not shown", !out().includes("28%") && !out().includes("28.4%"));
+  ok("unchecked ranking claim not shown", !out().includes("top 20"));
+  ok("summary labelled as AI, not checked", out().includes("written by AI"));
+  ok("brand section present", out().includes("Famous brands and products"));
+  ok("Christmas advert search is labelled unchecked", out().includes("unchecked results"));
+  ok("SWOT labelled as coming next", out().includes("SWOT analysis") && out().includes("Coming next"));
+  ok("hiring says based on adverts, not a confidence grade", !out().includes("High confidence") && hire().includes("based on 45 job adverts"));
   // 4. Nothing invented: only real record text is shown
   ok("no invented claims", !/guaranteed|best in class/i.test(out()));
   const fails = checks.filter(([, p]) => !p);

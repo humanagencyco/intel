@@ -25,6 +25,9 @@ h1 span{background:linear-gradient(90deg,var(--pink),var(--violet),var(--sky));-
 .chip{border:2px solid var(--ink);background:#fff;border-radius:999px;padding:6px 12px;font:inherit;font-weight:800;font-size:14px;cursor:pointer}
 .chip:hover{background:var(--ink);color:#fff}
 .note{color:var(--muted);font-size:14px;margin:10px 0 0}
+.label{font-size:12px;font-weight:800;color:var(--muted);margin:0 0 4px;text-transform:uppercase;letter-spacing:.04em}
+.brand{display:flex;gap:14px;align-items:center;border:2px solid var(--ink);border-radius:16px;padding:12px;background:var(--paper)}
+.logo{width:56px;height:56px;border-radius:12px;background:#fff;border:2px solid var(--ink)}
 .conf{display:inline-block;margin-left:6px;font-size:11px;font-weight:900;border:2px solid var(--ink);border-radius:999px;padding:1px 8px;background:var(--sun)}
 .card{margin:28px 0 10px;background:#fff;border:2px solid var(--ink);border-radius:22px;box-shadow:6px 6px 0 var(--ink);padding:24px}
 .card header{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:6px}
@@ -61,7 +64,7 @@ footer{color:var(--muted);font-size:13px;padding:30px 0 50px;text-align:center}
     <div class="results" id="suggest" aria-live="polite"></div>
   </section>
   <main id="out" aria-live="polite"></main>
-  <footer>Facts come from public sources and are labelled with where they came from. Built by Human Agency.</footer>
+  <footer>Each section says where its information comes from. Summaries and AI analysis are labelled as such and are not checked facts. Built by Human Agency.</footer>
 </div>
 <script>
 const API = "https://miru.humanagency.co";
@@ -79,6 +82,17 @@ async function getJSON(url) {
   return body;
 }
 
+// Summaries can contain figures and rankings we cannot check. Drop those sentences.
+const UNCHECKED = /\d+(\.\d+)?\s*%|\btop \d+|\blargest\b|\branks? among\b|\bmarket (share|leader)\b/i;
+function safeSummary(text) {
+  const kept = String(text || "").split(/(?<=[.!?])\s+/).filter(x => !UNCHECKED.test(x));
+  return kept.join(" ") || "No summary yet.";
+}
+
+function brandDomain(url) {
+  try { return new URL(url).hostname; } catch (e) { return ""; }
+}
+
 function renderCompany(c) {
   const social = OBJ(c.social_links), facts = LIST(c.key_facts), sources = LIST(c.sources);
   const status = c.status || "pending";
@@ -90,9 +104,20 @@ function renderCompany(c) {
   let body = "";
   if (status === "ready") {
     body = `
-      <p class="desc">${esc(c.description || "No description yet.")}</p>
+      <p class="label">Summary, written by AI from ${sources.length ? "Wikipedia" : "public sources"}. Not checked against an official source.</p>
+      <p class="desc">${esc(safeSummary(c.description))}</p>
+      <p class="note">Figures and rankings are left out until they can be checked.</p>
       ${grid ? `<div class="grid">${grid}</div>` : ""}
-      ${facts.length ? `<h3>Key facts</h3><ul class="facts">${facts.map(f => `<li>${esc(f)}</li>`).join("")}</ul>` : ""}
+      <h3>Key facts</h3><p class="note">Not shown yet. Facts are added only once they can be checked against an official source.</p>
+      <h3>Brand</h3>
+      <div class="brand">
+        <img class="logo" alt="" src="https://www.google.com/s2/favicons?sz=128&domain=${esc(brandDomain(c.website))}" onerror="this.style.display='none'">
+        <div><b>${esc(c.display_name)}</b><p class="note">Logo from the company's own website domain.</p></div>
+      </div>
+      <h3>Famous brands and products</h3><p class="note">Not checked yet. Will be added from the company's own site and filed reports.</p>
+      <h3>Christmas adverts</h3><p class="note">Not checked yet. <a href="https://www.youtube.com/results?search_query=${encodeURIComponent(c.display_name + ' Christmas advert')}" target="_blank" rel="noopener">Search YouTube for ${esc(c.display_name)} Christmas adverts ↗</a> (unchecked results).</p>
+      <h3>AI use</h3><p class="note">Coming next. AI-written, and labelled as such, using the hiring data below.</p>
+      <h3>SWOT analysis</h3><p class="note">Coming next. AI analysis, labelled as an estimate, with the evidence it used.</p>
       ${links.length ? `<h3>Find them online</h3><div class="links">${links.join("")}</div>` : ""}
       <h3>Hiring</h3><div id="hiring">Checking job adverts…</div>
       ${sources.length ? `<p class="sources">Sources: ${sources.map(u => `<a href="${esc(u)}" target="_blank" rel="noopener">${esc(u.replace(/^https?:\/\//, "").split("/").slice(0, 2).join("/"))}</a>`).join(", ")}</p>` : ""}`;
@@ -117,7 +142,7 @@ async function loadHiring(name) {
         <div class="fact"><small>Open roles found</small><b>${esc(o.total_open_roles ?? "0")}</b></div>
         <div class="fact"><small>Trend, last 3 months</small><b>${esc(o.hiring_growth_3m || "Not enough data")}</b></div>
         <div class="fact"><small>Main focus</small><b>${esc(o.signal || "No clear focus")}</b></div></div>`
-      + (d.growth_signals || []).map(g => `<p class="note"><b>${esc(g.title)}:</b> ${esc(g.description)} <span class="conf">${esc(g.confidence)} confidence</span></p>`).join("")
+      + (d.growth_signals || []).map(g => `<p class="note"><b>${esc(g.title)}:</b> ${esc(g.description)} <span class="conf">based on ${esc(o.total_open_roles ?? "?")} job adverts</span></p>`).join("")
       + `<p class="sources">Source: Adzuna job adverts, checked live. These are adverts found, not confirmed hires.</p>`;
   } catch (e) {
     el.innerHTML = `<p class="note">Job adverts unavailable right now.</p>`;
