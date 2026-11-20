@@ -6,6 +6,7 @@ const html = fs.readFileSync(path.join(__dirname, "..", "index.html"), "utf8");
 const script = html.match(/<script>([\s\S]*)<\/script>/)[1];
 const real = JSON.parse(fs.readFileSync(path.join(__dirname, "tesco_real.json"), "utf8"));
 const hiring = JSON.parse(fs.readFileSync(path.join(__dirname, "hiring_real.json"), "utf8"));
+const brand = JSON.parse(fs.readFileSync(path.join(__dirname, "brand_real.json"), "utf8"));
 const els = {};
 function El(id) {
   return { id, value: "", innerHTML: "", textContent: "", dataset: {}, onsubmit: null,
@@ -27,7 +28,7 @@ const checks = [];
 const ok = (n, c) => checks.push([n, !!c]);
 (async () => {
   // 1. Search finds Tesco and shows its real facts
-  responses = { "companies/search": { results: [real] }, "company/tesco": real, "hiring-signals": hiring };
+  responses = { "companies/search": { results: [real] }, "company/tesco": real, "hiring-signals": hiring, "brand/intelligence": brand };
   await submit("Tesco");
   await wait();
   ok("Tesco name shown", out().includes("Tesco"));
@@ -51,12 +52,15 @@ const ok = (n, c) => checks.push([n, !!c]);
   await submit("Broken Ltd");
   ok("failed shows plain message", out().includes("couldn't research Broken Ltd"));
   // 3b. Unchecked claims from the summary are not shown; sections are labelled
-  responses = { "companies/search": { results: [real] }, "company/tesco": real, "hiring-signals": hiring };
+  responses = { "companies/search": { results: [real] }, "company/tesco": real, "hiring-signals": hiring, "brand/intelligence": brand };
   await submit("Tesco");
   ok("unchecked market-share claim not shown", !out().includes("28%") && !out().includes("28.4%"));
   ok("unchecked ranking claim not shown", !out().includes("top 20"));
   ok("summary labelled as AI, not checked", out().includes("written by AI"));
-  ok("brand section present", out().includes("Famous brands and products"));
+  const br = () => document.getElementById("products").innerHTML + document.getElementById("news").innerHTML;
+  ok("products come from real listing data", br().includes("Tesco Carrots 500g") || br().includes("Squeezy Clear Honey"));
+  ok("news count shown from real data, with source", br().includes("136") && br().includes("NewsAPI"));
+  ok("brand section present", out().includes("Products seen online") && out().includes("In the news"));
   ok("Christmas advert search is labelled unchecked", out().includes("unchecked results"));
   ok("SWOT section present", out().includes("SWOT analysis"));
   ok("hiring says based on adverts, not a confidence grade", !out().includes("High confidence") && hire().includes("based on 45 job adverts"));

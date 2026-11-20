@@ -114,7 +114,8 @@ function renderCompany(c) {
         <img class="logo" alt="" src="https://www.google.com/s2/favicons?sz=128&domain=${esc(brandDomain(c.website))}" onerror="this.style.display='none'">
         <div><b>${esc(c.display_name)}</b><p class="note">Logo from the company's own website domain.</p></div>
       </div>
-      <h3>Famous brands and products</h3><p class="note">Not checked yet. Will be added from the company's own site and filed reports.</p>
+      <h3>Products seen online</h3><div id="products"><p class="note">Looking up product listings…</p></div>
+      <h3>In the news</h3><div id="news"><p class="note">Counting recent coverage…</p></div>
       <h3>Christmas adverts</h3><p class="note">Not checked yet. <a href="https://www.youtube.com/results?search_query=${encodeURIComponent(c.display_name + ' Christmas advert')}" target="_blank" rel="noopener">Search YouTube for ${esc(c.display_name)} Christmas adverts ↗</a> (unchecked results).</p>
       <h3>AI use</h3><div id="aiuse"><p class="note">Working out how they use AI…</p></div>
       <h3>SWOT analysis</h3><div id="swot"><p class="note">Working out a SWOT…</p></div>
@@ -152,6 +153,29 @@ async function loadAnalysis(name) {
   }
 }
 
+// Brand data from Miru: product listings (Google Shopping) and news counts. Each names its source.
+async function loadBrand(name) {
+  const pr = document.getElementById("products"), nw = document.getElementById("news");
+  if (!pr || !nw) return;
+  try {
+    const d = await getJSON(`${API}/api/brand/intelligence?name=${encodeURIComponent(name)}`);
+    const cat = d.catalog_intelligence || {};
+    const top = Array.isArray(cat.top_products) ? cat.top_products : [];
+    pr.innerHTML = top.length
+      ? `<ul class="facts">${top.slice(0, 6).map(p => `<li>${esc(p.title)} · ${esc(p.price || "")}${p.rating ? ` · ${esc(p.rating)}★` : ""} <span class="note">${esc(p.source || "")}</span></li>`).join("")}</ul>
+         <p class="sources">Source: Google Shopping listings, live. ${esc(cat.total_skus ?? top.length)} listings found. Not a full range.</p>`
+      : `<p class="note">No product listings found right now.</p>`;
+    const ai = d.ai_visibility || {};
+    nw.innerHTML = ai.mentions_30d
+      ? `<div class="fact"><small>Articles in the last 30 days</small><b>${esc(ai.mentions_30d)}</b></div>
+         <p class="sources">Source: NewsAPI, live. A count of articles that mention the name, not a measure of sentiment.</p>`
+      : `<p class="note">No recent coverage found.</p>`;
+  } catch (e) {
+    pr.innerHTML = `<p class="note">Product listings not available right now.</p>`;
+    nw.innerHTML = `<p class="note">News not available right now.</p>`;
+  }
+}
+
 async function loadHiring(name) {
   const el = document.getElementById("hiring");
   if (!el) return;
@@ -174,7 +198,7 @@ async function showCompany(name) {
   try {
     const c = await getJSON(`${API}/api/company/${encodeURIComponent(name.toLowerCase().replace(/\s+/g, "-"))}`);
     $("out").innerHTML = renderCompany(c);
-    if (c.status === "ready") { loadHiring(c.display_name); loadAnalysis(c.display_name); }
+    if (c.status === "ready") { loadHiring(c.display_name); loadAnalysis(c.display_name); loadBrand(c.display_name); }
   } catch (e) {
     $("out").innerHTML = `<div class="state">Could not load ${esc(name)}. ${esc(e.message || "")}</div>`;
   }
