@@ -207,6 +207,7 @@ async function showCompany(name) {
 async function search(q) {
   q = q.trim();
   if (q.length < 2) return;
+  try { history.replaceState(null, "", "?q=" + encodeURIComponent(q)); } catch (_) {}
   $("suggest").innerHTML = "";
   try {
     const d = await getJSON(`${API}/api/companies/search?q=${encodeURIComponent(q)}`);
@@ -226,6 +227,10 @@ async function search(q) {
 }
 
 $("searchForm").addEventListener("submit", e => { e.preventDefault(); search($("q").value); });
+
+// Open with a company already searched, e.g. /intel/?q=Tesco
+const startQ = new URLSearchParams(location.search).get("q");
+if (startQ) { $("q").value = startQ; search(startQ); }
 </script>
 </body>
 </html>
